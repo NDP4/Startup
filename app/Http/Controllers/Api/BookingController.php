@@ -13,7 +13,14 @@ class BookingController extends Controller
     public function index()
     {
         try {
-            $bookings = Booking::with(['customer', 'bus'])->get();
+            $user = Auth::user();
+            $bookings = Booking::query()
+                ->when($user->role !== 'admin', function ($query) use ($user) {
+                    $query->where('customer_id', $user->id);
+                })
+                ->with(['customer', 'bus'])
+                ->get();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Data pemesanan berhasil diambil',
@@ -92,6 +99,14 @@ class BookingController extends Controller
                 ], 404);
             }
 
+            // Cek apakah user memiliki akses ke booking ini
+            if (Auth::user()->role !== 'admin' && $booking->customer_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak memiliki akses ke pemesanan ini'
+                ], 403);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Data pemesanan ditemukan',
@@ -108,6 +123,14 @@ class BookingController extends Controller
 
     public function update(Request $request, Booking $booking)
     {
+        // Cek kepemilikan booking
+        if (Auth::user()->role !== 'admin' && $booking->customer_id !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke pemesanan ini'
+            ], 403);
+        }
+
         if (!$booking->isPending()) {
             return response()->json([
                 'success' => false,
@@ -145,6 +168,14 @@ class BookingController extends Controller
 
     public function destroy(Booking $booking)
     {
+        // Cek kepemilikan booking
+        if (Auth::user()->role !== 'admin' && $booking->customer_id !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke pemesanan ini'
+            ], 403);
+        }
+
         if (!$booking->isPending()) {
             return response()->json([
                 'success' => false,

@@ -78,13 +78,97 @@ class UserController extends Controller
         }
     }
 
-    function detail(Request $request)
+    function detail(Request $request, $id = null)
     {
-        $user = $request->user();
-        return response()->json([
-            'success' => true,
-            'message' => 'Detail user berhasil diambil',
-            'data' => $user
-        ], 200);
+        try {
+            $authUser = Auth::user();
+
+            // Jika ID tidak diberikan, tampilkan data user yang login
+            if (is_null($id)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Detail user berhasil diambil',
+                    'data' => $authUser
+                ], 200);
+            }
+
+            // Jika bukan admin dan mencoba akses data user lain
+            if ($authUser->role !== 'admin' && $authUser->id != $id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak memiliki akses untuk melihat data user lain'
+                ], 403);
+            }
+
+            // Cari user yang diminta
+            $user = User::find($id);
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "User dengan ID {$id} tidak ditemukan"
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Detail user berhasil diambil',
+                'data' => $user
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil detail user',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Tambahkan method untuk admin melihat semua users
+    function index()
+    {
+        try {
+            if (Auth::user()->role !== 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            $users = User::all();
+            return response()->json([
+                'success' => true,
+                'message' => 'Data users berhasil diambil',
+                'data' => $users,
+                'total' => $users->count()
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data users',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function logout(Request $request)
+    {
+        try {
+            // Revoke current user token
+            $request->user()->currentAccessToken()->delete();
+
+            // Optional: Revoke semua tokens dari user, jika Anda ingin logout dari semua perangkat
+            $request->user()->tokens()->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Logout berhasil',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan logout',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

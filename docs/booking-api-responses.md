@@ -230,6 +230,15 @@
 }
 ```
 
+### Response Error - Akses Ditolak (403)
+
+```json
+{
+    "success": false,
+    "message": "Anda tidak memiliki akses ke pemesanan ini"
+}
+```
+
 ## Response Error Token (401)
 
 ### Token Tidak Valid atau Tidak Ada

@@ -30,6 +30,13 @@ Route::get('/user/detail', [UserController::class, 'detail'])->middleware('auth:
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
+    // Auth routes
+    Route::post('/user/logout', [UserController::class, 'logout']);
+
+    // User routes
+    Route::get('/users', [UserController::class, 'index']); // Admin only - get all users
+    Route::get('/users/{id?}', [UserController::class, 'detail']); // Get specific user or self
+
     // Bus routes
     Route::apiResource('buses', BusController::class);
 
