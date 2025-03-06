@@ -18,8 +18,7 @@ class UserController extends Controller
             'email' => 'required|email',
             'password' => 'required',
             'phone' => 'required',
-            'address' => 'required',
-            'role' => 'required'
+            'address' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -32,6 +31,7 @@ class UserController extends Controller
 
         $data = $request->all();
         $data['password'] = bcrypt($request->password);
+        $data['role'] = 'customer';
         $user = User::create($data);
         $token = $user->createToken('authToken')->plainTextToken;
 
@@ -76,5 +76,15 @@ class UserController extends Controller
                 'message' => 'Login gagal',
             ], 401);
         }
+    }
+
+    function detail(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            'success' => true,
+            'message' => 'Detail user berhasil diambil',
+            'data' => $user
+        ], 200);
     }
 }
