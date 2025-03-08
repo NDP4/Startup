@@ -16,4 +16,13 @@ class EditReview extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data = parent::mutateFormDataBeforeFill($data);
+
+        $this->record->loadMissing(['booking.customer', 'customer', 'bus', 'crew']);
+
+        return $data;
+    }
 }

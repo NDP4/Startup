@@ -8,13 +8,50 @@ use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
     public function index()
     {
-        $payments = Payment::with(['booking'])->get();
-        return response()->json(['success' => true, 'data' => $payments]);
+        $query = Payment::with(['booking.customer', 'booking.bus']);
+
+        // Filter for customer role
+        if (Auth::user()->role === 'customer') {
+            $query->whereHas('booking', function ($q) {
+                $q->where('customer_id', Auth::id());
+            });
+        }
+
+        $payments = $query->latest()->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data pembayaran berhasil diambil',
+            'data' => $payments->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'booking_id' => $payment->booking_id,
+                    'payment_id' => $payment->payment_id,
+                    'amount' => (float) $payment->amount,
+                    'payment_type' => $payment->payment_type,
+                    'status' => $payment->status,
+                    'paid_at' => $payment->paid_at?->format('Y-m-d H:i:s'),
+                    'created_at' => $payment->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $payment->updated_at->format('Y-m-d H:i:s'),
+                    'payment_details' => $payment->payment_details,
+                    'booking' => [
+                        'id' => $payment->booking->id,
+                        'customer_name' => $payment->booking->customer->name,
+                        'bus_name' => $payment->booking->bus->name,
+                        'booking_date' => $payment->booking->booking_date->format('Y-m-d H:i:s'),
+                        'return_date' => $payment->booking->return_date?->format('Y-m-d H:i:s'),
+                        'total_amount' => (float) $payment->booking->total_amount,
+                        'status' => $payment->booking->status,
+                    ]
+                ];
+            })
+        ]);
     }
 
     public function store(Request $request)
@@ -43,6 +80,7 @@ class PaymentController extends Controller
             'payment_type' => $request->payment_type,
             'status' => 'pending',
             'payment_details' => $request->payment_details,
+            'created_at' => Carbon::now('Asia/Jakarta'), // Waktu Indonesia
             'paid_at' => null
         ]);
 
@@ -51,20 +89,46 @@ class PaymentController extends Controller
 
     public function show(Payment $payment)
     {
-        $booking = $payment->booking()->first();
-        if ($booking->customer_id !== Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        // Check if current user has access to this payment
+        if (Auth::user()->role === 'customer' && $payment->booking->customer_id !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki akses',
+            ], 403);
         }
+
+        $payment->load(['booking.customer', 'booking.bus']);
 
         return response()->json([
             'success' => true,
-            'data' => $payment->load('booking')
+            'message' => 'Data pembayaran berhasil diambil',
+            'data' => [
+                'id' => $payment->id,
+                'booking_id' => $payment->booking_id,
+                'payment_id' => $payment->payment_id,
+                'amount' => (float) $payment->amount,
+                'payment_type' => $payment->payment_type,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->format('Y-m-d H:i:s'),
+                'created_at' => $payment->created_at->format('Y-m-d H:i:s'),
+                'updated_at' => $payment->updated_at->format('Y-m-d H:i:s'),
+                'payment_details' => $payment->payment_details,
+                'booking' => [
+                    'id' => $payment->booking->id,
+                    'customer_name' => $payment->booking->customer->name,
+                    'bus_name' => $payment->booking->bus->name,
+                    'booking_date' => $payment->booking->booking_date->format('Y-m-d H:i:s'),
+                    'return_date' => $payment->booking->return_date?->format('Y-m-d H:i:s'),
+                    'total_amount' => (float) $payment->booking->total_amount,
+                    'status' => $payment->booking->status,
+                ]
+            ]
         ]);
     }
 
     public function update(Request $request, Payment $payment)
     {
-        // Only allow admin to update payment status
+        // Hanya admin yang dapat update status pembayaran.
         if (Auth::user()->role !== 'admin') {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
@@ -81,7 +145,7 @@ class PaymentController extends Controller
         $payment->fill([
             'status' => $request->status,
             'payment_details' => $request->payment_details ?? $payment->getAttribute('payment_details'),
-            'paid_at' => $request->status === 'paid' ? now() : null
+            'paid_at' => $request->status === 'paid' ? Carbon::now('Asia/Jakarta') : null
         ])->save();
 
         return response()->json(['success' => true, 'data' => $payment]);
@@ -89,7 +153,7 @@ class PaymentController extends Controller
 
     public function destroy(Payment $payment)
     {
-        // Only allow admin to delete payments
+        // Hanya admin yang dapat menghapus pembayaran.
         if (Auth::user()->role !== 'admin') {
             return response()->json([
                 'success' => false,

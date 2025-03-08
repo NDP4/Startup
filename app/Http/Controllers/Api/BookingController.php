@@ -12,28 +12,56 @@ class BookingController extends Controller
 {
     public function index()
     {
-        try {
-            $user = Auth::user();
-            $bookings = Booking::query()
-                ->when($user->role !== 'admin', function ($query) use ($user) {
-                    $query->where('customer_id', $user->id);
-                })
-                ->with(['customer', 'bus'])
-                ->get();
+        $query = Booking::with(['customer', 'bus', 'payments']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Data pemesanan berhasil diambil',
-                'data' => $bookings,
-                'total' => $bookings->count()
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data pemesanan',
-                'error' => $e->getMessage()
-            ], 500);
+        // Filter for customer role
+        if (Auth::user()->role === 'customer') {
+            $query->where('customer_id', Auth::id());
         }
+
+        $bookings = $query->latest()->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data booking berhasil diambil',
+            'data' => $bookings->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'customer' => [
+                        'id' => $booking->customer->id,
+                        'name' => $booking->customer->name,
+                        'email' => $booking->customer->email,
+                        'phone' => $booking->customer->phone,
+                    ],
+                    'bus' => [
+                        'id' => $booking->bus->id,
+                        'name' => $booking->bus->name,
+                        'number_plate' => $booking->bus->number_plate,
+                    ],
+                    'booking_date' => $booking->booking_date->format('Y-m-d H:i:s'),
+                    'return_date' => $booking->return_date?->format('Y-m-d H:i:s'),
+                    'pickup_location' => $booking->pickup_location,
+                    'destination' => $booking->destination,
+                    'total_seats' => $booking->total_seats,
+                    'seat_type' => $booking->seat_type,
+                    'total_amount' => (float) $booking->total_amount,
+                    'special_requests' => $booking->special_requests,
+                    'status' => $booking->status,
+                    'payment_status' => $booking->payment_status,
+                    'snap_token' => $booking->snap_token,
+                    'created_at' => $booking->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $booking->updated_at->format('Y-m-d H:i:s'),
+                    'latest_payment' => $booking->payments->last() ? [
+                        'id' => $booking->payments->last()->id,
+                        'payment_id' => $booking->payments->last()->payment_id,
+                        'amount' => (float) $booking->payments->last()->amount,
+                        'payment_type' => $booking->payments->last()->payment_type,
+                        'status' => $booking->payments->last()->status,
+                        'paid_at' => $booking->payments->last()->paid_at?->format('Y-m-d H:i:s'),
+                    ] : null,
+                ];
+            })
+        ]);
     }
 
     public function store(Request $request)
@@ -87,38 +115,77 @@ class BookingController extends Controller
         }
     }
 
-    public function show(Request $request, $id)
+    public function show(Booking $booking)
     {
-        try {
-            $booking = Booking::with(['customer', 'bus'])->find($id);
-
-            if (!$booking) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Data pemesanan dengan ID {$id} tidak ditemukan"
-                ], 404);
-            }
-
-            // Cek apakah user memiliki akses ke booking ini
-            if (Auth::user()->role !== 'admin' && $booking->customer_id !== Auth::id()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Anda tidak memiliki akses ke pemesanan ini'
-                ], 403);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Data pemesanan ditemukan',
-                'data' => $booking
-            ], 200);
-        } catch (\Exception $e) {
+        // Check if current user has access to this booking
+        if (Auth::user()->role === 'customer' && $booking->customer_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengambil detail pemesanan',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Tidak memiliki akses',
+            ], 403);
         }
+
+        $booking->load(['customer', 'bus', 'payments', 'crewAssignments.crew']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data booking berhasil diambil',
+            'data' => [
+                'id' => $booking->id,
+                'customer' => [
+                    'id' => $booking->customer->id,
+                    'name' => $booking->customer->name,
+                    'email' => $booking->customer->email,
+                    'phone' => $booking->customer->phone,
+                ],
+                'bus' => [
+                    'id' => $booking->bus->id,
+                    'name' => $booking->bus->name,
+                    'number_plate' => $booking->bus->number_plate,
+                    'pricing_type' => $booking->bus->pricing_type,
+                    'price_per_day' => (float) $booking->bus->price_per_day,
+                    'price_per_km' => (float) $booking->bus->price_per_km,
+                    'legrest_price_per_seat' => (float) $booking->bus->legrest_price_per_seat,
+                ],
+                'booking_date' => $booking->booking_date->format('Y-m-d H:i:s'),
+                'return_date' => $booking->return_date?->format('Y-m-d H:i:s'),
+                'pickup_location' => $booking->pickup_location,
+                'destination' => $booking->destination,
+                'total_seats' => $booking->total_seats,
+                'seat_type' => $booking->seat_type,
+                'total_amount' => (float) $booking->total_amount,
+                'special_requests' => $booking->special_requests,
+                'status' => $booking->status,
+                'payment_status' => $booking->payment_status,
+                'snap_token' => $booking->snap_token,
+                'created_at' => $booking->created_at->format('Y-m-d H:i:s'),
+                'updated_at' => $booking->updated_at->format('Y-m-d H:i:s'),
+                'crew_assignments' => $booking->crewAssignments->map(function ($assignment) {
+                    return [
+                        'id' => $assignment->id,
+                        'crew' => [
+                            'id' => $assignment->crew->id,
+                            'name' => $assignment->crew->name,
+                            'phone' => $assignment->crew->phone,
+                        ],
+                        'status' => $assignment->status,
+                        'notes' => $assignment->notes,
+                    ];
+                }),
+                'payments' => $booking->payments->map(function ($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'payment_id' => $payment->payment_id,
+                        'amount' => (float) $payment->amount,
+                        'payment_type' => $payment->payment_type,
+                        'status' => $payment->status,
+                        'payment_details' => $payment->payment_details,
+                        'paid_at' => $payment->paid_at?->format('Y-m-d H:i:s'),
+                        'created_at' => $payment->created_at->format('Y-m-d H:i:s'),
+                    ];
+                }),
+            ]
+        ]);
     }
 
     public function update(Request $request, Booking $booking)
@@ -131,7 +198,8 @@ class BookingController extends Controller
             ], 403);
         }
 
-        if (!$booking->isPending()) {
+        // Hanya admin yang bisa mengubah booking yang sudah dibayar
+        if (Auth::user()->role !== 'admin' && !$booking->isPending()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Tidak dapat mengubah pemesanan yang sudah dikonfirmasi'

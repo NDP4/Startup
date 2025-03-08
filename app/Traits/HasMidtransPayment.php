@@ -40,6 +40,18 @@ trait HasMidtransPayment
         $paymentType = $notification['payment_type'];
         $orderId = $notification['order_id'];
 
+        // Create or update payment record
+        $payment = $this->payments()->updateOrCreate(
+            ['payment_id' => $notification['transaction_id']],
+            [
+                'amount' => $notification['gross_amount'],
+                'payment_type' => $paymentType,
+                'status' => $transactionStatus,
+                'payment_details' => $notification,
+                'paid_at' => in_array($transactionStatus, ['capture', 'settlement']) ? now() : null
+            ]
+        );
+
         // Update booking status based on payment status
         switch ($transactionStatus) {
             case 'capture':

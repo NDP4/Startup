@@ -27,18 +27,31 @@ class PanelPanelProvider extends PanelProvider
             ->id('panel')
             ->path('panel')
             ->login()
+            ->registration()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                // \App\Filament\Pages\Dashboard::class, // Ubah ini dari Pages\Dashboard::class
+                Pages\Dashboard::class
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                // Admin widgets
+                \App\Filament\Widgets\StatsOverviewWidget::class,
+                \App\Filament\Widgets\OrdersChart::class,
+                \App\Filament\Widgets\CustomersChart::class,
+                \App\Filament\Widgets\LatestOrders::class,
+
+                // Crew widgets
+                \App\Filament\Widgets\Crew\CrewStatsOverview::class,
+                \App\Filament\Widgets\Crew\UpcomingAssignments::class,
+
+                // Customer widgets
+                \App\Filament\Widgets\Customer\CustomerStatsOverview::class,
+                \App\Filament\Widgets\Customer\RecentBookings::class,
             ])
             ->middleware([
                 EncryptCookies::class,

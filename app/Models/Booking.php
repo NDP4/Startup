@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Traits\HasMidtransPayment;
+use Illuminate\Support\Facades\Auth; // Add this import
 
 class Booking extends Model
 {
@@ -70,5 +71,30 @@ class Booking extends Model
     {
         return in_array($this->payment_status, ['pending', 'failed'])
             && !empty($this->snap_token);
+    }
+
+    public function busReview(): HasOne
+    {
+        return $this->hasOne(Review::class);
+    }
+
+    public function crewReview(): HasOne
+    {
+        return $this->hasOne(Review::class);
+    }
+
+    public function canBeReviewed(): bool
+    {
+        return $this->status === 'completed' &&
+            $this->payment_status === 'paid' &&
+            !$this->review;
+    }
+
+    public function canEditPriceFactors(): bool
+    {
+        if (Auth::user()?->role === 'admin') {
+            return true;
+        }
+        return $this->payment_status !== 'paid';
     }
 }

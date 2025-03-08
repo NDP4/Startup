@@ -59,6 +59,6 @@ class RouteController extends Controller
     public function destroy(Route $route)
     {
         $route->delete();
-        return response()->json(['success' => true, 'message' => 'Route deleted successfully']);
+        return response()->json(['success' => true, 'message' => 'Rute berhasil dihapus.']);
     }
 }

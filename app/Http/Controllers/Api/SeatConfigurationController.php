@@ -12,13 +12,26 @@ class SeatConfigurationController extends Controller
 {
     public function index()
     {
-        $configurations = SeatConfiguration::with('bus')->get();
-        return response()->json(['success' => true, 'data' => $configurations]);
+        try {
+            $configurations = SeatConfiguration::with('bus')->get();
+            return response()->json([
+                'success' => true,
+                'message' => 'Data konfigurasi kursi berhasil diambil',
+                'data' => $configurations,
+                'total' => $configurations->count()
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memproses permintaan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(Request $request)
     {
-        // Only admin can create seat configurations
+        // hanya admin yang dapat membuat konfigurasi kursi.
         if (Auth::user()->role !== 'admin') {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
@@ -77,7 +90,7 @@ class SeatConfigurationController extends Controller
         $seatConfiguration->delete();
         return response()->json([
             'success' => true,
-            'message' => 'Seat configuration deleted successfully'
+            'message' => 'konfigurasi kursi berhasil dihapus.'
         ]);
     }
 }

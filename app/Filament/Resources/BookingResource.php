@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BookingResource\Pages;
 use App\Models\Booking;
 use App\Models\Bus;
+use App\Models\Review;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -26,6 +27,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Actions\Action;
+use Filament\Support\Enums\ActionSize;
+use App\Forms\Components\Rating;
 
 class BookingResource extends Resource
 {
@@ -41,17 +44,28 @@ class BookingResource extends Resource
         return $form->schema([
             Forms\Components\Grid::make()->schema([
                 Forms\Components\Section::make('Pilih Bus')
-                    ->description('Pilih bus yang ingin anda sewa')
+                    ->description(function ($record) use ($user) {
+                        if ($record && !$record->canEditPriceFactors() && $user->role === 'customer') {
+                            return 'Untuk melakukan perubahan booking, silakan hubungi admin di (021) 123-4567';
+                        }
+                        return 'Pilih bus yang ingin anda sewa';
+                    })
                     ->columnSpanFull()
                     ->schema([
                         BusGrid::make('bus_grid')
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->visible(fn($record) => !$record || $record->canEditPriceFactors())
+                            ->disabled(fn($record) => $record && !$record->canEditPriceFactors()),
                         Forms\Components\Select::make('bus_id')
                             ->relationship('bus', 'name', fn($query) =>
                             $query->where('status', 'available'))
                             ->required()
-                            ->disabled()  // Disable the select field
-                            ->dehydrated() // Keep the value when form is submitted
+                            ->visible(fn($record) => !$record || $record->canEditPriceFactors())
+                            ->disabled(
+                                fn($record) =>
+                                $record && (!$record->canEditPriceFactors() || $record->payment_status === 'paid')
+                            )
+                            ->dehydrated()
                             ->searchable()
                             ->preload()
                             ->label('Bus yang Dipilih')
@@ -74,16 +88,34 @@ class BookingResource extends Resource
                         Forms\Components\DateTimePicker::make('booking_date')
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn($state, $get, $set) => static::calculateTotalFromState($get, $set)),
+                            ->disabled(
+                                fn($record) =>
+                                $record && !$record->canEditPriceFactors()
+                            )
+                            ->afterStateUpdated(fn($state, $get, $set) =>
+                            static::calculateTotalFromState($get, $set)),
+
                         Forms\Components\DateTimePicker::make('return_date')
                             ->live()
-                            ->afterStateUpdated(fn($state, $get, $set) => static::calculateTotalFromState($get, $set)),
+                            ->disabled(
+                                fn($record) =>
+                                $record && !$record->canEditPriceFactors()
+                            )
+                            ->afterStateUpdated(fn($state, $get, $set) =>
+                            static::calculateTotalFromState($get, $set)),
+
                         Forms\Components\TextInput::make('total_seats')
                             ->required()
                             ->numeric()
                             ->minValue(1)
                             ->live()
-                            ->afterStateUpdated(fn($state, $get, $set) => static::calculateTotalFromState($get, $set)),
+                            ->disabled(
+                                fn($record) =>
+                                $record && !$record->canEditPriceFactors()
+                            )
+                            ->afterStateUpdated(fn($state, $get, $set) =>
+                            static::calculateTotalFromState($get, $set)),
+
                         Forms\Components\Select::make('seat_type')
                             ->options([
                                 'standard' => 'Standard',
@@ -91,7 +123,12 @@ class BookingResource extends Resource
                             ])
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn($state, $get, $set) => static::calculateTotalFromState($get, $set)),
+                            ->disabled(
+                                fn($record) =>
+                                $record && !$record->canEditPriceFactors()
+                            )
+                            ->afterStateUpdated(fn($state, $get, $set) =>
+                            static::calculateTotalFromState($get, $set)),
                         Forms\Components\TextInput::make('pickup_location')
                             ->required()
                             ->label('Lokasi Penjemputan'),
@@ -117,7 +154,6 @@ class BookingResource extends Resource
                                 'completed' => 'Completed',
                                 'cancelled' => 'Cancelled',
                             ])
-                            ->disabled()
                             ->default('pending')
                             : Hidden::make('status')
                             ->default('pending'),
@@ -187,6 +223,16 @@ class BookingResource extends Resource
         $set('total_amount', $total);
     }
 
+    protected function calculatedReview(Review $review): array
+    {
+        return [
+            'bus_rating' => $review->bus_rating,
+            'bus_comment' => $review->bus_comment,
+            'crew_rating' => $review->crew_rating,
+            'crew_comment' => $review->crew_comment,
+        ];
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -243,24 +289,91 @@ class BookingResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Action::make('pay')
-                    ->label('Bayar')
-                    ->icon('heroicon-o-credit-card')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Konfirmasi Pembayaran')
-                    ->modalDescription('Anda akan diarahkan ke halaman pembayaran dalam tab baru.')
-                    ->action(function (Booking $record) {
-                        // Create payment token if not exists
-                        if (empty($record->payment_token)) {
-                            $record->createMidtransPayment();
-                            $record->refresh();
-                        }
-
-                        // Return URL to be opened in new tab
-                        return redirect()->route('payment.checkout', $record);
+                    ->label(
+                        fn(Booking $record): string =>
+                        $record->payment_status === 'paid' ? 'Cetak Kwitansi' : 'Bayar'
+                    )
+                    ->icon(
+                        fn(Booking $record): string =>
+                        $record->payment_status === 'paid' ? 'heroicon-o-document-text' : 'heroicon-o-credit-card'
+                    )
+                    ->color(
+                        fn(Booking $record): string =>
+                        $record->payment_status === 'paid' ? 'success' : 'warning'
+                    )
+                    ->url(
+                        fn(Booking $record): string =>
+                        $record->payment_status === 'paid'
+                            ? route('booking.receipt', $record)
+                            : route('payment.checkout', $record)
+                    )
+                    // ->openUrlInNewTab()
+                    ->visible(
+                        fn(Booking $record): bool =>
+                        in_array($record->payment_status, ['pending', 'paid'])
+                    ),
+                Action::make('review')
+                    ->label(fn(Booking $record) => $record->review ? 'Edit Review' : 'Beri Review')
+                    ->icon('heroicon-o-star')
+                    ->color('warning')
+                    ->modalContent(fn(Booking $record) => view('filament.resources.booking.review-modal', [
+                        'booking' => $record->load(['bus', 'crewAssignments.crew', 'review']),
+                    ]))
+                    ->modalSubmitActionLabel('Simpan Review')
+                    ->form([
+                        Section::make('Review Bus')
+                            ->description('Berikan penilaian untuk bus yang Anda gunakan')
+                            ->schema([
+                                Forms\Components\Hidden::make('customer_id')
+                                    ->default(fn() => Auth::id()),
+                                Forms\Components\Hidden::make('bus_id')
+                                    ->default(fn(Booking $record) => $record->bus_id),
+                                Rating::make('bus_rating')
+                                    ->label('Rating')
+                                    ->helperText('Berikan rating 1-5 bintang')
+                                    ->required(),
+                                Forms\Components\Textarea::make('bus_comment')
+                                    ->label('Ulasan')
+                                    ->rows(3)
+                                    ->placeholder('Bagaimana pengalaman Anda menggunakan bus ini?')
+                                    ->required(),
+                            ]),
+                        Section::make('Review Crew')
+                            ->description('Berikan penilaian untuk crew yang melayani Anda')
+                            ->schema([
+                                Forms\Components\Hidden::make('crew_id')
+                                    ->default(function (Booking $record) {
+                                        return $record->crewAssignments->first()?->crew_id;
+                                    }),
+                                Rating::make('crew_rating')
+                                    ->label('Rating')
+                                    ->helperText('Berikan rating 1-5 bintang')
+                                    ->required(fn(Get $get): bool => filled($get('crew_id')))
+                                    ->visible(fn(Booking $record) => $record->crewAssignments->isNotEmpty()),
+                                Forms\Components\Textarea::make('crew_comment')
+                                    ->label('Ulasan')
+                                    ->rows(3)
+                                    ->placeholder('Bagaimana pelayanan crew selama perjalanan?')
+                                    ->required(fn(Get $get): bool => filled($get('crew_id')))
+                                    ->visible(fn(Booking $record) => $record->crewAssignments->isNotEmpty()),
+                            ]),
+                    ])
+                    ->action(function (array $data, Booking $record) {
+                        $review = $record->review ?? new Review();
+                        $review->fill([
+                            'customer_id' => Auth::id(),
+                            'booking_id' => $record->id,
+                            'bus_id' => $record->bus_id,
+                            'bus_rating' => $data['bus_rating'],
+                            'bus_comment' => $data['bus_comment'],
+                            'crew_id' => $data['crew_id'] ?? null,
+                            'crew_rating' => $data['crew_rating'] ?? null,
+                            'crew_comment' => $data['crew_comment'] ?? null,
+                        ]);
+                        $review->save();
                     })
-                    ->visible(fn(Booking $record): bool =>
-                    $record->getAttribute('payment_status') === 'pending'),
+                    ->visible(fn(Booking $record) => $record->status === 'completed' && $record->payment_status === 'paid')
+                    ->modalWidth('xl'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
