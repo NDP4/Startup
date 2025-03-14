@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+  laravel_booking_bus:
+    container_name: laravel_booking_bus
+    image: laravel_booking_bus
+    build: .
+    ports:
+      - "8002:80"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: booking_bus
+      MYSQL_USER: project-bus
+      MYSQL_PASSWORD: bus123
+      MYSQL_ROOT_PASSWORD: bus123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer-bus
+    restart: always
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: "pepa-linha"
+    ports:
+      - "8082:8080"
+
+volumes:
+  mysql_data:
