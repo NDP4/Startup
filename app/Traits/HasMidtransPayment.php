@@ -9,13 +9,16 @@ trait HasMidtransPayment
 {
     public function createMidtransPayment()
     {
-        // If payment is pending and has snap token, reuse it
+        // If payment is pending and has snap token, don't create new one
         if ($this->canRetryPayment()) {
-            return true;
+            return [
+                'success' => true,
+                'token' => $this->snap_token,
+                'order_id' => $this->order_id
+            ];
         }
 
         try {
-            // Get MidtransService instance from container
             $midtransService = App::make(MidtransService::class);
             $result = $midtransService->createTransaction($this);
 
@@ -25,12 +28,14 @@ trait HasMidtransPayment
                     'order_id' => $result['order_id'],
                     'payment_status' => 'pending'
                 ]);
-                return true;
             }
 
-            throw new \Exception($result['message']);
+            return $result;
         } catch (\Exception $e) {
-            throw new \Exception('Payment creation failed: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
         }
     }
 

@@ -60,4 +60,32 @@ class Bus extends Model
 
         return $basePrice + $seatPrice;
     }
+
+    public function isAvailableOn($startDate, $endDate = null): bool
+    {
+        // Jika bus dalam maintenance/booked, langsung return false
+        if ($this->status !== 'available') {
+            return false;
+        }
+
+        // Jika tidak ada tanggal akhir, gunakan tanggal awal
+        $endDate = $endDate ?? $startDate;
+
+        // Cek apakah ada booking yang overlap
+        $conflictingBookings = $this->bookings()
+            ->where('payment_status', 'paid')
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('booking_date', [$startDate, $endDate])
+                        ->orWhereBetween('return_date', [$startDate, $endDate])
+                        ->orWhere(function ($sq) use ($startDate, $endDate) {
+                            $sq->where('booking_date', '<=', $startDate)
+                                ->where('return_date', '>=', $endDate);
+                        });
+                });
+            })
+            ->exists();
+
+        return !$conflictingBookings;
+    }
 }

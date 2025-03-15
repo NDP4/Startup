@@ -34,6 +34,10 @@ class User extends Authenticatable implements FilamentUser
         'role' => 'string',
     ];
 
+    protected $attributes = [
+        'role' => 'customer', // Set default role
+    ];
+
     const ROLE_ADMIN = 'admin';
     const ROLE_CUSTOMER = 'customer';
     const ROLE_CREW = 'crew';
@@ -72,5 +76,14 @@ class User extends Authenticatable implements FilamentUser
     public function getJWTCustomClaims()
     {
         return [];
+    }
+
+    public function update(array $attributes = [], array $options = [])
+    {
+        if (!empty($attributes['password'])) {
+            $attributes['password'] = bcrypt($attributes['password']);
+        }
+
+        return parent::update($attributes, $options);
     }
 }

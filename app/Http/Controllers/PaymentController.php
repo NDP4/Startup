@@ -11,33 +11,29 @@ class PaymentController extends Controller
     public function checkout(Booking $booking)
     {
         // Authorization check
-        if (
-            !Auth::check() ||
-            (Auth::user()->role !== 'admin' &&
-                Auth::id() !== $booking->getAttribute('customer_id'))
-        ) {
-            abort(403, 'Unauthorized access');
+        if (Auth::id() !== $booking->customer_id) {
+            abort(403);
         }
 
-        // Load relationships for the view
+        // Load relationships
         $booking->load(['customer', 'bus']);
 
         try {
-            // Only create new payment if no valid snap token exists
+            // Create new payment token if doesn't exist
             if (empty($booking->snap_token)) {
                 $booking->createMidtransPayment();
                 $booking->refresh();
             }
 
             if (empty($booking->snap_token)) {
-                throw new \Exception('Failed to get payment token');
+                throw new \Exception('Failed to generate payment token');
             }
-        } catch (\Exception $e) {
-            return redirect()->route('filament.panel.resources.bookings.index')
-                ->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
-        }
 
-        return view('payment.checkout', compact('booking'));
+            return view('payment.checkout', compact('booking'));
+        } catch (\Exception $e) {
+            return redirect()->route('customer.bookings.index')
+                ->with('error', 'Failed to process payment: ' . $e->getMessage());
+        }
     }
 
     public function success(Request $request)
@@ -121,5 +117,27 @@ class PaymentController extends Controller
     {
         return redirect()->route('filament.panel.resources.bookings.index')
             ->with('info', 'Pembayaran dibatalkan');
+    }
+
+    public function updateStatus(Request $request, Booking $booking)
+    {
+        if (!Auth::check() || (Auth::user()->role !== 'admin' && Auth::id() !== $booking->customer_id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:expired',
+            'payment_status' => 'required|in:cancelled'
+        ]);
+
+        $booking->update([
+            'status' => $validated['status'],
+            'payment_status' => $validated['payment_status']
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status updated successfully'
+        ]);
     }
 }

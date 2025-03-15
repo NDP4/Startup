@@ -34,6 +34,10 @@ class MidtransService
             'transaction_details' => [
                 'order_id' => $uniqueOrderId,
                 'gross_amount' => (int) $booking->getAttribute('total_amount'),
+                'expiry' => [
+                    'unit' => 'minutes',
+                    'duration' => 60, // 1 jam
+                ],
             ],
             'customer_details' => [
                 'first_name' => $customer?->getAttribute('name') ?? 'Unknown',

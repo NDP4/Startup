@@ -3,49 +3,28 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Checkout Pembayaran - {{ config('app.name') }}</title>
-    <script type="text/javascript"
-            src="{{ config('midtrans.is_production') ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js' }}"
-            data-client-key="{{ config('midtrans.client_key') }}"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            '600': '#F59E0B',
-                            '700': '#D97706',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <title>Pembayaran #{{ $booking->id }} - {{ config('app.name') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
-        /* Style untuk container payment frame */
-        #snap-container {
-            width: 100%;
-            height: 100%;
-            min-height: 700px;
-        }
-
-        /* Hide scrollbar untuk container utama */
-        .payment-frame-container {
-            overflow: hidden;
-            border-radius: 0.75rem;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        * {
+            font-family: 'Inter', sans-serif;
         }
     </style>
+    <!-- Ganti script src Midtrans sesuai environment -->
+    <script type="text/javascript"
+        src="{{ config('services.midtrans.snap_js_url') }}"
+        data-client-key="{{ config('services.midtrans.client_key') }}">
+    </script>
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen">
         {{-- Header with Back Button --}}
-        <header class="bg-white shadow-sm mb-6">
-            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <header class="mb-6 bg-white shadow-sm">
+            <div class="flex items-center justify-between px-4 py-4 mx-auto max-w-7xl">
                 <h1 class="text-2xl font-bold text-gray-900">Checkout Pembayaran</h1>
-                <a href="{{ route('filament.panel.resources.bookings.index') }}"
-                   class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200
-                          text-gray-700 rounded-lg transition-colors">
+                <a href="{{ auth()->user()->role === 'customer' ? route('customer.bookings.index') : route('filament.panel.resources.bookings.index') }}"
+                   class="inline-flex items-center px-4 py-2 text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -55,19 +34,19 @@
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto px-4">
-            <div class="grid lg:grid-cols-2 gap-8">
+        <main class="px-4 mx-auto max-w-7xl">
+            <div class="grid gap-8 lg:grid-cols-2">
                 {{-- Order Summary --}}
                 <div class="space-y-6">
                     {{-- Bus Details Card --}}
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-hidden bg-white shadow-sm rounded-xl">
                         <div class="p-6">
-                            <h2 class="text-lg font-semibold mb-4">Detail Bus</h2>
+                            <h2 class="mb-4 text-lg font-semibold">Detail Bus</h2>
                             <div class="flex gap-4">
                                 @if($booking->bus->images && count($booking->bus->images) > 0)
                                     <img src="{{ Storage::url($booking->bus->images[0]) }}"
                                          alt="{{ $booking->bus->name }}"
-                                         class="w-24 h-24 rounded-lg object-cover">
+                                         class="object-cover w-24 h-24 rounded-lg">
                                 @endif
                                 <div>
                                     <h3 class="font-medium">{{ $booking->bus->name }}</h3>
@@ -79,9 +58,9 @@
                     </div>
 
                     {{-- Travel Details Card --}}
-                    <div class="bg-white rounded-xl shadow-sm">
+                    <div class="bg-white shadow-sm rounded-xl">
                         <div class="p-6">
-                            <h2 class="text-lg font-semibold mb-4">Detail Perjalanan</h2>
+                            <h2 class="mb-4 text-lg font-semibold">Detail Perjalanan</h2>
                             <div class="grid gap-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
@@ -108,10 +87,10 @@
                     </div>
 
                     {{-- Total Amount Card --}}
-                    <div class="bg-white rounded-xl shadow-sm">
+                    <div class="bg-white shadow-sm rounded-xl">
                         <div class="p-6">
-                            <h2 class="text-lg font-semibold mb-4">Ringkasan Pembayaran</h2>
-                            <div class="space-y-3 pb-4">
+                            <h2 class="mb-4 text-lg font-semibold">Ringkasan Pembayaran</h2>
+                            <div class="pb-4 space-y-3">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Total</span>
                                     <span class="text-xl font-bold text-primary-600">
@@ -124,16 +103,15 @@
                 </div>
 
                 {{-- Payment Frame --}}
-                <div class="payment-frame-container bg-white rounded-xl shadow-sm">
+                <div class="bg-white shadow-sm payment-frame-container rounded-xl">
                     <div id="snap-container"></div>
                 </div>
             </div>
 
             {{-- Add Back Button at the Bottom for Mobile --}}
             <div class="mt-6 lg:hidden">
-                <a href="{{ route('filament.panel.resources.bookings.index') }}"
-                   class="block w-full text-center px-4 py-3 bg-gray-100 hover:bg-gray-200
-                          text-gray-700 rounded-lg transition-colors">
+                <a href="{{ auth()->user()->role === 'customer' ? route('customer.bookings.index') : route('filament.panel.resources.bookings.index') }}"
+                   class="block w-full px-4 py-3 text-center text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200">
                     Tunda Pembayaran & Kembali ke Daftar Booking
                 </a>
             </div>
@@ -143,33 +121,62 @@
     <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
             const snapToken = '{{ $booking->snap_token }}';
+            console.log('Using snap token:', snapToken);
 
             if (!snapToken) {
                 alert('Token pembayaran tidak valid. Silakan coba lagi.');
-                window.location.href = '{{ route("filament.panel.resources.bookings.index") }}';
+                window.location.href = '{{ auth()->user()->role === 'customer' ? route('customer.bookings.index') : route('filament.panel.resources.bookings.index') }}';
                 return;
             }
 
-            // Initialize embedded snap
-            window.snap.embed(snapToken, {
-                embedId: 'snap-container',
-                onSuccess: function(result) {
-                    window.location.href = '{{ route("payment.success") }}' +
-                        '?order_id=' + result.order_id +
-                        '&status=' + result.transaction_status;
-                },
-                onPending: function(result) {
-                    window.location.href = '{{ route("payment.pending") }}' +
-                        '?order_id=' + result.order_id;
-                },
-                onError: function(result) {
-                    console.error('Payment Error:', result);
-                    window.location.href = '{{ route("payment.error") }}';
-                },
-                onClose: function() {
-                    window.location.href = '{{ route("filament.panel.resources.bookings.index") }}';
-                }
-            });
+            try {
+                window.snap.embed(snapToken, {
+                    embedId: 'snap-container',
+                    onSuccess: function(result) {
+                        console.log('Payment success:', result);
+                        window.location.href = '{{ route("payment.success") }}' +
+                            '?order_id=' + result.order_id +
+                            '&status=' + result.transaction_status;
+                    },
+                    onPending: function(result) {
+                        console.log('Payment pending:', result);
+                        window.location.href = '{{ route("payment.pending") }}' +
+                            '?order_id=' + result.order_id;
+                    },
+                    onError: function(result) {
+                        console.error('Payment Error:', result);
+                        // Handle expired payment
+                        if (result.status_code === '407' || result.transaction_status === 'expire') {
+                            fetch('{{ route("payment.update-status", $booking->id) }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({
+                                    status: 'expired',
+                                    payment_status: 'cancelled'
+                                })
+                            }).then(response => response.json())
+                              .then(data => {
+                                  if (data.success) {
+                                      window.location.href = '{{ route("payment.cancelled") }}';
+                                  }
+                              });
+                        } else {
+                            window.location.href = '{{ route("payment.error") }}';
+                        }
+                    },
+                    onClose: function() {
+                        // Redirect ke halaman booking list jika user menutup modal
+                        window.location.href = '{{ auth()->user()->role === 'customer' ? route('customer.bookings.index') : route('filament.panel.resources.bookings.index') }}';
+                    }
+                });
+            } catch (e) {
+                console.error('Snap initialization error:', e);
+                alert('Terjadi kesalahan saat memuat pembayaran. Silakan coba lagi.');
+                window.location.href = '{{ route("filament.panel.resources.bookings.index") }}';
+            }
         });
     </script>
 </body>

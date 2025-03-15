@@ -26,8 +26,10 @@ class PanelPanelProvider extends PanelProvider
             ->default()
             ->id('panel')
             ->path('panel')
+            ->registration() // Enable registration
             ->login()
-            ->registration()
+            ->profile()
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Blue,
             ])
@@ -63,6 +65,7 @@ class PanelPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                \App\Http\Middleware\RedirectBasedOnRole::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

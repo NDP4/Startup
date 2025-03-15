@@ -4,29 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kwitansi #{{ $booking->id }} - {{ config('app.name') }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#fff7ed',
-                            100: '#ffedd5',
-                            200: '#fed7aa',
-                            300: '#fdba74',
-                            400: '#fb923c',
-                            500: '#f97316',
-                            600: '#ea580c',
-                            700: '#c2410c',
-                            800: '#9a3412',
-                            900: '#7c2d12',
-                        },
-                    }
-                }
-            }
-        }
-    </script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         * {
@@ -41,22 +19,24 @@
             <div class="flex items-center justify-between mb-6">
                 <h1 class="text-2xl font-bold text-gray-900">Kwitansi Pembayaran</h1>
                 <div class="space-x-2">
-                    <a href="{{ route('booking.receipt.download', $booking) }}"
-                       class="inline-flex items-center px-4 py-2 text-white transition-colors duration-200 rounded-lg bg-blue-600 hover:bg-blue-700">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                        Unduh PDF
-                    </a>
-                    <a href="{{ route('filament.panel.resources.bookings.index') }}"
-                       class="inline-flex items-center px-4 py-2 text-gray-700 transition-colors duration-200 bg-gray-100 rounded-lg hover:bg-gray-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                        </svg>
-                        Kembali
-                    </a>
+                    <div class="flex justify-end gap-4 mt-6">
+                        @if(auth()->user()->role === 'customer')
+                            <a href="{{ url()->previous() }}" class="btn-secondary">
+                                Back
+                            </a>
+                        @else
+                            <a href="{{ route('filament.panel.resources.bookings.index') }}" class="btn-secondary">
+                                Back to Bookings
+                            </a>
+                        @endif
+
+                        <a href="{{ route('booking.receipt.download', $booking) }}" class="btn-primary">
+                            <svg class="inline-block w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Download Receipt
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -74,7 +54,7 @@
                         </div>
                     </div>
                     <div class="text-right">
-                        <div class="px-4 py-2 mb-4 text-sm font-medium text-white rounded-lg bg-blue-600">KWITANSI</div>
+                        <div class="px-4 py-2 mb-4 text-sm font-medium text-white bg-blue-600 rounded-lg">KWITANSI</div>
                         <p class="mb-1 text-2xl font-bold text-gray-900">#{{ str_pad($booking->id, 5, '0', STR_PAD_LEFT) }}</p>
                         <p class="text-gray-600">{{ $booking->created_at->format('d F Y') }}</p>
                     </div>
@@ -193,7 +173,7 @@
                 </div>
 
                 {{-- Amount in Words --}}
-                <div class="p-4 mb-8 text-sm border rounded-lg border-blue-200 bg-blue-50">
+                <div class="p-4 mb-8 text-sm border border-blue-200 rounded-lg bg-blue-50">
                     <span class="font-medium text-blue-800">
                         Terbilang: {{ ucwords(\App\Helpers\Terbilang::make($booking->total_amount)) }} Rupiah
                     </span>
