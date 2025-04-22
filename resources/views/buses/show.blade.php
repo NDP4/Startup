@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="py-12">
+    <div class="py-12 mt-10">
         <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
             <div class="overflow-hidden bg-white shadow-sm rounded-xl">
                 <div class="p-6">
@@ -7,18 +7,27 @@
                         {{-- Image Gallery --}}
                         <div class="space-y-4">
                             <div class="aspect-w-16 aspect-h-9">
-                                @if($bus->images && count($bus->images) > 0)
-                                    <img src="{{ Storage::url($bus->images[0]) }}"
-                                         alt="{{ $bus->name }}"
-                                         class="object-cover w-full h-full rounded-lg">
-                                @endif
+                                <img id="mainImage"
+                                     src="{{ $bus->main_image ? Storage::url($bus->main_image) : asset('images/bus-placeholder.jpg') }}"
+                                     alt="{{ $bus->name }}"
+                                     class="object-cover w-full h-full rounded-lg">
                             </div>
-                            @if($bus->images && count($bus->images) > 1)
+                            @if(count($bus->all_images) > 0)
                                 <div class="grid grid-cols-4 gap-2">
-                                    @foreach(array_slice($bus->images, 1) as $image)
-                                        <img src="{{ Storage::url($image) }}"
-                                             alt="{{ $bus->name }}"
-                                             class="object-cover w-full rounded-lg cursor-pointer aspect-square">
+                                    @foreach($bus->all_images as $index => $image)
+                                        <button onclick="document.getElementById('mainImage').src = '{{ Storage::url($image['url']) }}'"
+                                                class="relative aspect-square group">
+                                            <img src="{{ Storage::url($image['url']) }}"
+                                                 alt="{{ $image['description'] ?? $bus->name . ' image ' . ($index + 1) }}"
+                                                 class="object-cover w-full h-full transition duration-300 rounded-lg hover:opacity-75">
+                                            @if($image['description'])
+                                                <div class="absolute inset-0 flex items-end justify-center p-2 transition duration-300 bg-black/0 group-hover:bg-black/40">
+                                                    <p class="text-xs text-white opacity-0 group-hover:opacity-100">
+                                                        {{ $image['description'] }}
+                                                    </p>
+                                                </div>
+                                            @endif
+                                        </button>
                                     @endforeach
                                 </div>
                             @endif
@@ -121,4 +130,12 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function changeMainImage(url) {
+            document.getElementById('mainImage').src = url;
+        }
+    </script>
+    @endpush
 </x-app-layout>

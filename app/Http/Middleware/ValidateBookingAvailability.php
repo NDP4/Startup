@@ -19,9 +19,16 @@ class ValidateBookingAvailability
             $endDate = $returnDate ? Carbon::parse($returnDate) : null;
 
             if (!$bus->isAvailableOn($startDate, $endDate)) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bus not available for selected dates'
+                    ], 422);
+                }
+
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Sorry, this bus is not available for the selected dates.');
+                    ->with('error', 'Bus not available for selected dates');
             }
         }
 

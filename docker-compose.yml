@@ -1,40 +1,54 @@
 version: "3"
 
 services:
-  laravel_booking_bus:
-    container_name: laravel_booking_bus
-    image: laravel_booking_bus
-    build: .
-    ports:
-      - "8002:80"
-    env_file:
-      - .env
-    depends_on:
-      - db
+    laravel_booking_bus:
+        container_name: laravel_booking_bus
+        image: laravel_booking_bus
+        build: .
+        restart: always
+        ports:
+            - "8002:80"
+        env_file:
+            - .env
+        depends_on:
+            - db
+        volumes:
+            - ./:/app
+            - /app/node_modules
+            - /app/vendor
+            - ./storage/app/public:/app/storage/app/public
+            - ./storage/logs:/app/storage/logs
+            - ./storage/framework:/app/storage/framework
 
-  db:
-    image: mysql:8.0
-    container_name: mysql_db
-    restart: always
-    environment:
-      MYSQL_DATABASE: booking_bus
-      MYSQL_USER: project-bus
-      MYSQL_PASSWORD: bus123
-      MYSQL_ROOT_PASSWORD: bus123
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3307:3306"
+    db:
+        image: mysql:8.0
+        container_name: mysql_db-bus
+        restart: always
+        environment:
+            MYSQL_DATABASE: booking_bus
+            MYSQL_USER: project-bus
+            MYSQL_PASSWORD: bus123
+            MYSQL_ROOT_PASSWORD: bus123
+        volumes:
+            - mysql_data:/var/lib/mysql
+        ports:
+            - "3309:3306"
 
-  adminer:
-    image: adminer:latest
-    container_name: adminer-bus
-    restart: always
-    environment:
-      ADMINER_DEFAULT_SERVER: db
-      ADMINER_DESIGN: "pepa-linha"
-    ports:
-      - "8082:8080"
+    adminer:
+        platform: linux/amd64 # untuk versi arm64 bisa diganti dengan linux/x86_64
+        image: adminer:latest
+        container_name: adminer-bus
+        restart: always
+        environment:
+            ADMINER_DEFAULT_SERVER: db
+            ADMINER_DESIGN: "pepa-linha"
+        ports:
+            - "8082:8080"
 
 volumes:
-  mysql_data:
+    mysql_data:
+
+networks:
+    default:
+        name: booking_bus_network
+        driver: bridge

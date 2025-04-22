@@ -46,9 +46,15 @@ class BusResource extends Resource
                 Forms\Components\FileUpload::make('images')
                     ->image()
                     ->multiple()
+                    ->imageEditor()
+                    ->reorderable()
                     ->maxFiles(5)
                     ->directory('buses')
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->enableOpen()
+                    ->preserveFilenames()
+                    ->storeFileNamesIn('image_names')
+                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.'),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([

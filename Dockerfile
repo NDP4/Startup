@@ -4,8 +4,11 @@ ENV SERVER_NAME=":80"
 
 WORKDIR /app
 
-COPY . /app
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
+# Install PHP extensions
 RUN apt-get update && apt-get install -y \
     zip \
     libzip-dev \
@@ -15,4 +18,13 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=composer:2.2 /usr/bin/composer /usr/bin/composer
 
+COPY . /app
+
+# Install PHP dependencies
 RUN composer install
+
+# Install NPM dependencies and build assets
+RUN npm install && npm run build
+
+# Set permissions
+RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache

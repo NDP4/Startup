@@ -58,19 +58,13 @@
                     <div class="flex items-center">
                         @auth
                             <div class="relative ml-3" x-data="{ open: false }">
-                                <button @click="open = !open" class="flex items-center text-sm transition-colors bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                    <div class="p-2 text-gray-600 hover:text-gray-900">
-                                        {{ Auth::user()->name }}
-                                        <svg class="inline w-4 h-4 ml-1 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                </button>
-
-                                <div x-show="open"
-                                     @click.away="open = false"
-                                     class="absolute right-0 z-50 w-48 py-1 mt-2 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                                     role="menu">
+                                <div>
+                                    <button @click="open = !open" type="button" class="flex text-sm bg-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                                        <span class="sr-only">Open user menu</span>
+                                        <img class="w-8 h-8 rounded-full" src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=7F9CF5&background=EBF4FF" alt="{{ Auth::user()->name }}">
+                                    </button>
+                                </div>
+                                <div x-show="open" @click.away="open = false" class="absolute right-0 w-48 py-1 mt-2 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
                                     @if(Auth::user()->role === 'customer')
                                         <a href="{{ route('customer.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
                                         <a href="{{ route('customer.profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>

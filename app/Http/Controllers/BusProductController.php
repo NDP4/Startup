@@ -140,8 +140,12 @@ class BusProductController extends Controller
             ['path' => request()->url(), 'query' => request()->query()]
         );
 
+
+
         return view('buses.index', ['buses' => $paginatedBuses]);
     }
+
+
 
     public function show(Bus $bus)
     {
@@ -151,9 +155,11 @@ class BusProductController extends Controller
                 ->limit(5);
         }]);
 
+        $images = $bus->all_images;
+        $mainImage = $bus->main_image;
         $averageRating = $bus->reviews->avg('bus_rating');
         $totalReviews = $bus->reviews->count();
 
-        return view('buses.show', compact('bus', 'averageRating', 'totalReviews'));
+        return view('buses.show', compact('bus', 'averageRating', 'totalReviews', 'images', 'mainImage'));
     }
 }

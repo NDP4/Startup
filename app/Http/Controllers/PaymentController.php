@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
@@ -39,55 +41,48 @@ class PaymentController extends Controller
     public function success(Request $request)
     {
         $orderId = $request->get('order_id');
+        if (!$orderId) {
+            return redirect()->route('filament.panel.resources.bookings.index')
+                ->with('error', 'Invalid order ID');
+        }
+
         $bookingId = str_replace('BOOKING-', '', explode('-', $orderId)[1]);
         $booking = Booking::find($bookingId);
 
         if ($booking && $request->get('status') === 'settlement') {
-            // Extract payment details
-            $paymentDetails = $request->all();
-            $vaNumbers = $paymentDetails['va_numbers'] ?? [];
-            $vaNumber = !empty($vaNumbers) ? $vaNumbers[0]['va_number'] : null;
-            $bankName = !empty($vaNumbers) ? strtoupper($vaNumbers[0]['bank']) : null;
+            // Generate a unique payment ID if one is not provided
+            $paymentId = $request->get('transaction_id', 'PAY-' . uniqid());
 
-            // Format payment type based on Midtrans response
-            $paymentMethod = match ($request->get('payment_type')) {
-                'bank_transfer' => sprintf(
-                    'Virtual Account %s (%s)',
-                    $bankName,
-                    $vaNumber
-                ),
-                'credit_card' => $request->get('card_type', 'Kartu Kredit'),
-                'gopay' => 'GoPay',
-                'qris' => 'QRIS',
-                default => $request->get('payment_type', 'Unknown')
-            };
+            // Set payment details
+            $paymentDetails = [
+                'transaction_id' => $paymentId,
+                'order_id' => $orderId,
+                'status' => $request->get('status'),
+                'payment_type' => $request->get('payment_type', 'Bank Transfer'),
+                'payment_method' => $request->get('payment_type'),
+                'va_numbers' => $request->get('va_numbers', []),
+                'bank' => $request->get('bank'),
+                'va_number' => $request->get('va_number'),
+                'acquirer' => $request->get('acquirer'),
+                'settlement_time' => $request->get('settlement_time', now()),
+                'transaction_time' => $request->get('transaction_time', now()),
+                'currency' => $request->get('currency', 'IDR'),
+                'fraud_status' => $request->get('fraud_status')
+            ];
 
-            // Create payment record dengan detail lengkap
-            $booking->payments()->create([
-                'payment_id' => $request->get('transaction_id'),
+            // Create payment record
+            $payment = $booking->payments()->create([
+                'payment_id' => $paymentId,
                 'amount' => $booking->total_amount,
-                'payment_type' => $paymentMethod,
+                'payment_type' => $request->get('payment_type', 'Bank Transfer'),
                 'status' => 'success',
-                'payment_details' => [
-                    'transaction_id' => $request->get('transaction_id'),
-                    'order_id' => $orderId,
-                    'status' => $request->get('status'),
-                    'payment_type' => $paymentMethod,
-                    'payment_method' => $request->get('payment_type'),
-                    'va_numbers' => $vaNumbers,
-                    'bank' => $bankName,
-                    'va_number' => $vaNumber,
-                    'acquirer' => $request->get('acquirer'),
-                    'settlement_time' => $request->get('settlement_time'),
-                    'transaction_time' => $request->get('transaction_time'),
-                    'currency' => $request->get('currency', 'IDR'),
-                    'fraud_status' => $request->get('fraud_status'),
-                ],
+                'payment_details' => $paymentDetails,
                 'paid_at' => $request->get('settlement_time')
-                    ? date('Y-m-d H:i:s', strtotime($request->get('settlement_time')))
+                    ? Carbon::parse($request->get('settlement_time'))
                     : now()
             ]);
 
+            // Update booking status
             $booking->update([
                 'payment_status' => 'paid',
                 'status' => 'confirmed'

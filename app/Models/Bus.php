@@ -17,6 +17,7 @@ class Bus extends Model
         'default_seat_capacity',
         'status', // enum: available, maintenance, booked
         'images',
+        'image_names',
         'pricing_type', // daily atau distance
         'price_per_day', // harga per hari
         'price_per_km', // harga per kilometer
@@ -25,10 +26,22 @@ class Bus extends Model
 
     protected $casts = [
         'images' => 'array',
+        'image_names' => 'array',
         'price_per_day' => 'decimal:2',
         'price_per_km' => 'decimal:2',
         'legrest_price_per_seat' => 'decimal:2',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($bus) {
+            if (is_array($bus->images)) {
+                $bus->images = array_values($bus->images);
+            }
+        });
+    }
 
     public function seatConfigurations(): HasMany
     {
@@ -87,5 +100,23 @@ class Bus extends Model
             ->exists();
 
         return !$conflictingBookings;
+    }
+
+    public function getMainImageAttribute()
+    {
+        if (!$this->images || empty($this->images)) {
+            return null;
+        }
+        return is_array($this->images[0]) ? $this->images[0]['url'] : $this->images[0];
+    }
+
+    public function getAllImagesAttribute()
+    {
+        if (!$this->images) {
+            return [];
+        }
+        return collect($this->images)->map(function ($image) {
+            return is_array($image) ? $image : ['url' => $image, 'description' => null];
+        })->toArray();
     }
 }

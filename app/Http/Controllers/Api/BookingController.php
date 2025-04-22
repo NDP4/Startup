@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Bus;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class BookingController extends Controller
@@ -64,53 +67,90 @@ class BookingController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, Bus $bus)
     {
         $validator = Validator::make($request->all(), [
-            'bus_id' => 'required|exists:buses,id',
-            'booking_date' => 'required|date',
+            'booking_date' => 'required|date|after:today',
             'return_date' => 'required|date|after:booking_date',
-            'total_seats' => 'required|integer|min:1',
+            'pickup_location' => 'required|string',
+            'destination' => 'required|string',
+            'total_seats' => 'required|integer|min:1|max:' . $bus->default_seat_capacity,
             'seat_type' => 'required|in:standard,legrest',
-            'pickup_location' => 'required',
-            'destination' => 'required',
-            'special_requests' => 'nullable'
-        ], [
-            'required' => ':attribute harus diisi',
-            'exists' => ':attribute tidak ditemukan',
-            'date' => ':attribute harus berupa tanggal',
-            'after' => ':attribute harus setelah tanggal pemesanan',
-            'integer' => ':attribute harus berupa angka',
-            'min' => ':attribute minimal :min',
-            'in' => ':attribute tidak valid'
+            'special_requests' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validasi gagal',
+                'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
         }
 
         try {
-            $data = $request->all();
-            $data['customer_id'] = Auth::id();
-            $data['status'] = 'pending';
-            $data['payment_status'] = 'pending';
+            DB::beginTransaction();
 
-            $booking = Booking::create($data);
+            $startDate = Carbon::parse($request->booking_date);
+            $endDate = Carbon::parse($request->return_date);
+            $days = $startDate->diffInDays($endDate) + 1;
+
+            if (!$bus->isAvailableOn($startDate, $endDate)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bus not available for selected dates'
+                ], 422);
+            }
+
+            $booking = Booking::create([
+                'customer_id' => Auth::id(),
+                'bus_id' => $bus->id,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'total_amount' => $bus->calculateTotalPrice(
+                    $request->total_seats,
+                    $request->seat_type,
+                    $days
+                ),
+                ...$validator->validated()
+            ]);
+
+            try {
+                $paymentResult = $booking->createMidtransPayment();
+
+                if (!$paymentResult['success']) {
+                    throw new \Exception('Failed to create payment');
+                }
+
+                $booking->snap_token = $paymentResult['token'];
+                $booking->save();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment initialization failed: ' . $e->getMessage()
+                ], 500);
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pemesanan berhasil dibuat',
-                'data' => $booking
+                'message' => 'Booking created successfully',
+                'data' => [
+                    'booking' => $booking,
+                    'payment' => [
+                        'snap_token' => $booking->snap_token,
+                        'payment_url' => config('services.midtrans.is_production')
+                            ? 'https://app.midtrans.com/snap/v2/vtweb/'
+                            : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/'
+                    ]
+                ]
             ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membuat pemesanan',
-                'error' => $e->getMessage()
+                'message' => 'Booking creation failed: ' . $e->getMessage()
             ], 500);
         }
     }

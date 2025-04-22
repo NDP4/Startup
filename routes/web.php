@@ -99,7 +99,7 @@ Route::middleware(['auth', 'verified'])->prefix('customer')->name('customer.')->
 Route::post('payment/notification', [PaymentNotificationController::class, 'handle'])
     ->name('payment.notification');
 
-Route::middleware(['auth'])->prefix('customer')->name('customer.')->group(function () {
+Route::middleware(['auth', 'verified'])->prefix('customer')->name('customer.')->group(function () {
     Route::get('dashboard', [CustomerDashboardController::class, 'index'])->name('dashboard');
     Route::get('profile/edit', [CustomerProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [CustomerProfileController::class, 'update'])->name('profile.update');
