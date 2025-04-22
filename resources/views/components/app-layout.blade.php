@@ -49,6 +49,10 @@
                                        class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 border-b-2 border-transparent hover:text-primary-600 hover:border-primary-600">
                                         Assigned Crew
                                     </a>
+                                    <a href="{{ route('chat.index') }}" class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 border-b-2 border-transparent hover:text-primary-600 hover:border-primary-600">
+                                        <span>Chat</span>
+                                        <span class="px-2 py-1 ml-2 text-xs text-white bg-red-500 rounded-full" id="unread-counter"></span>
+                                    </a>
                                 @endif
                             @endauth
                         </div>
@@ -113,6 +117,9 @@
                             <a href="{{ route('customer.reviews.index') }}" class="block py-2 pl-3 pr-4 text-base font-medium text-gray-700 hover:bg-gray-50">
                                 My Reviews
                             </a>
+                            <a href="{{ route('chat.index') }}" class="block py-2 pl-3 pr-4 text-base font-medium text-gray-700 hover:bg-gray-50">
+                                Chat
+                            </a>
                         @endif
                     @endauth
                 </div>
@@ -125,5 +132,23 @@
         </main>
     </div>
     @livewireStyles
+    <script>
+        function updateUnreadCount() {
+            fetch('/api/chat/unread-count')
+                .then(response => response.json())
+                .then(data => {
+                    const counter = document.getElementById('unread-counter');
+                    if (counter) {
+                        counter.textContent = data.data.unread_count || '';
+                        counter.style.display = data.data.unread_count ? 'inline' : 'none';
+                    }
+                });
+        }
+
+        // Update unread count every 30 seconds
+        setInterval(updateUnreadCount, 30000);
+        // Initial update
+        document.addEventListener('DOMContentLoaded', updateUnreadCount);
+    </script>
 </body>
 </html>

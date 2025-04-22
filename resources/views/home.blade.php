@@ -11,7 +11,7 @@
                 </p>
                 <div class="mt-10">
                     @auth
-                        <a href="{{ route('filament.panel.resources.bookings.create') }}" class="inline-flex items-center px-6 py-3 text-base font-medium transition-colors bg-white border border-transparent rounded-lg text-primary-600 hover:bg-gray-50">
+                        <a href="{{ route('buses.index') }}" class="inline-flex items-center px-6 py-3 text-base font-medium transition-colors bg-white border border-transparent rounded-lg text-primary-600 hover:bg-gray-50">
                             Pesan Sekarang
                             <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
@@ -313,7 +313,7 @@
             <div class="flex mt-8 lg:mt-0 lg:flex-shrink-0">
                 @auth
                     <div class="inline-flex rounded-lg shadow">
-                        <a href="{{ route('filament.panel.resources.bookings.create') }}"
+                        <a href="{{ route('buses.index') }}"
                            class="inline-flex items-center justify-center px-5 py-3 text-base font-medium transition-colors bg-white border border-transparent rounded-lg text-primary-600 hover:bg-primary-50">
                             Pesan Sekarang
                         </a>
