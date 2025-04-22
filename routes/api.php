@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\CrewAssignmentController;
 use App\Http\Controllers\Api\SeatConfigurationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ChatController;
 
 // Handle Unauthorized Access
 Route::middleware('api')->get('/unauthorized', function () {
@@ -57,4 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Seat Configuration routes
     Route::apiResource('seat-configurations', SeatConfigurationController::class);
+
+    // Chat Routes
+    Route::get('/chat/conversations', [ChatController::class, 'getConversations']);
+    Route::get('/chat/unread-count', [ChatController::class, 'getUnreadCount']);
+    Route::get('/chat/{user}', [ChatController::class, 'getConversation']);
+    Route::get('/chat', [ChatController::class, 'index']);
+    Route::post('/chat', [ChatController::class, 'store']);
 });

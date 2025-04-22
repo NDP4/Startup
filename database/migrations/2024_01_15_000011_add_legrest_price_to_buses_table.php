@@ -1,1 +1,0 @@
-// Delete this file as legrest_price_per_seat is already defined in create_buses_table

@@ -15,6 +15,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Customer\CrewAssignmentController;
 use App\Http\Controllers\Customer\CrewAssignmentController as CustomerCrewAssignmentController;
+use App\Http\Controllers\ChatController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -137,7 +138,12 @@ Route::middleware(['auth', \App\Http\Middleware\ValidateBookingAvailability::cla
     Route::post('/booking/{bus}', [BookingController::class, 'store'])->name('booking.store');
 });
 
-// Route::middleware(['auth', 'validate.booking'])->group(function () {
-//     Route::get('/booking/{bus}', [BookingController::class, 'create'])->name('booking.create');
-//     Route::post('/booking/{bus}', [BookingController::class, 'store'])->name('booking.store');
-// });
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Existing routes...
+
+    // Chat Routes
+    Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::get('/chat/{user}', [ChatController::class, 'show'])->name('chat.show');
+    Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::get('/chat/unread-count', [ChatController::class, 'getUnreadCount'])->name('chat.unread-count');
+});
