@@ -46,7 +46,7 @@ return [
             'throw' => false,
             'report' => true,
             'scheme' => 'https',
-            'forcedScheme' => 'https',
+            'disable_route_prefix_prefix' => true,
             'middleware' => ['web'],
             'headers' => [
                 'X-Frame-Options' => 'SAMEORIGIN',

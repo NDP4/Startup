@@ -65,7 +65,6 @@ class BusResource extends Resource
                     ->imageResizeTargetWidth('1920')
                     ->imageResizeTargetHeight('1080')
                     ->uploadButtonPosition('right')
-                    ->forceHttps()
                     ->visibility('public')
                     ->onUploadFailed(function ($file, $livewire, $uploadError) {
                         \Filament\Notifications\Notification::make()
