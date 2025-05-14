@@ -52,8 +52,9 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'https://localhost'),
+    'url' => env('APP_URL', 'https://startuplinux.ndp.my.id'),
     'force_https' => env('FORCE_HTTPS', true),
+    'asset_url' => env('ASSET_URL', 'https://startuplinux.ndp.my.id'),
 
     /*
     |--------------------------------------------------------------------------
