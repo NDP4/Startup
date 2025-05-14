@@ -59,6 +59,8 @@ class BusResource extends Resource
                     ->storeFileNamesIn('image_names')
                     ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
                     ->afterStateUpdated(function ($state, $set, $livewire) {
+                        Log::info('File upload state updated', ['state' => $state]);
+
                         if ($state === null) {
                             Log::error('Image upload failed: State is null');
                             session()->flash('error', 'Failed to upload image: State is null');
@@ -91,6 +93,21 @@ class BusResource extends Resource
                     ->maxSize(5120) // 5MB
                     ->saveUploadedFileUsing(function ($file) {
                         try {
+                            // Check storage permissions
+                            $uploadPath = storage_path('app/public/buses');
+                            if (!is_dir($uploadPath)) {
+                                mkdir($uploadPath, 0755, true);
+                            }
+
+                            Log::info('Checking storage permissions', [
+                                'path' => $uploadPath,
+                                'exists' => file_exists($uploadPath),
+                                'is_writable' => is_writable($uploadPath),
+                                'permissions' => decoct(fileperms($uploadPath)),
+                                'server_user' => get_current_user(),
+                                'php_user' => exec('whoami'),
+                            ]);
+
                             // Log pre-upload details
                             Log::info('Attempting file upload', [
                                 'original_name' => $file->getClientOriginalName(),
@@ -98,7 +115,7 @@ class BusResource extends Resource
                                 'size' => $file->getSize(),
                                 'error' => $file->getError(),
                                 'disk' => 'public',
-                                'storage_path' => storage_path('app/public/buses'),
+                                'storage_path' => $uploadPath,
                                 'is_valid' => $file->isValid(),
                                 'upload_extension' => $file->extension(),
                             ]);
@@ -108,14 +125,14 @@ class BusResource extends Resource
                             }
 
                             // Ensure storage directory exists
-                            $uploadPath = storage_path('app/public/buses');
                             if (!file_exists($uploadPath)) {
-                                mkdir($uploadPath, 0755, true);
+                                if (!mkdir($uploadPath, 0755, true)) {
+                                    throw new \Exception("Failed to create directory: {$uploadPath}");
+                                }
                             }
 
                             $path = $file->store('buses', 'public');
 
-                            // Verify file was actually saved
                             if (!Storage::disk('public')->exists($path)) {
                                 throw new \Exception('File was not saved to storage');
                             }
@@ -140,13 +157,15 @@ class BusResource extends Resource
                                 'storage_permissions' => decoct(fileperms(storage_path('app/public'))),
                                 'intended_path' => 'buses/' . $file->getClientOriginalName(),
                                 'is_writable' => is_writable(storage_path('app/public')),
+                                'server_path' => $_SERVER['DOCUMENT_ROOT'] ?? 'unknown',
                             ]);
 
                             session()->flash('error', 'Failed to upload file: ' . $e->getMessage());
                             return null;
                         }
                     })
-                    ->disk('public'),
+                    ->disk('public')
+                    ->visibility('public'),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
