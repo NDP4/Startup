@@ -54,12 +54,7 @@ class BusResource extends Resource
                     ->enableOpen()
                     ->preserveFilenames()
                     ->storeFileNamesIn('image_names')
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                    ->maxSize(5120)
-                    ->panelAspectRatio('16:9')
-                    ->imageResizeMode('cover')
-                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
-                    ->disk('public'),
+                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.'),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
