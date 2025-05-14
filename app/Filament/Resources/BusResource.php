@@ -54,7 +54,30 @@ class BusResource extends Resource
                     ->enableOpen()
                     ->preserveFilenames()
                     ->storeFileNamesIn('image_names')
-                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.'),
+                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
+                    ->uploadingMessage('Mengunggah gambar...')
+                    ->loadingIndicatorPosition('left')
+                    ->removeUploadedFileButtonPosition('right')
+                    ->uploadProgressIndicatorPosition('left')
+                    ->afterStateUpdated(function ($state, $set, $livewire) {
+                        if ($state === null) {
+                            \Illuminate\Support\Facades\Log::error('Image upload failed: State is null');
+                            return;
+                        }
+                        if (is_array($state) && empty($state)) {
+                            \Illuminate\Support\Facades\Log::error('Image upload failed: Empty array received');
+                            return;
+                        }
+                        \Illuminate\Support\Facades\Log::info('Image upload successful', ['files' => $state]);
+                    })
+                    ->onUploadError(function ($error) {
+                        \Illuminate\Support\Facades\Log::error('Image upload error', [
+                            'error' => $error->getMessage(),
+                            'trace' => $error->getTraceAsString(),
+                            'file' => $error->getFile(),
+                            'line' => $error->getLine()
+                        ]);
+                    }),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
