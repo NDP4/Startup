@@ -4,14 +4,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BusResource\Pages;
 use App\Models\Bus;
-use Exception;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class BusResource extends Resource
 {
@@ -57,115 +54,7 @@ class BusResource extends Resource
                     ->enableOpen()
                     ->preserveFilenames()
                     ->storeFileNamesIn('image_names')
-                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
-                    ->afterStateUpdated(function ($state, $set, $livewire) {
-                        Log::info('File upload state updated', ['state' => $state]);
-
-                        if ($state === null) {
-                            Log::error('Image upload failed: State is null');
-                            session()->flash('error', 'Failed to upload image: State is null');
-                            return;
-                        }
-                        if (is_array($state) && empty($state)) {
-                            Log::error('Image upload failed: Empty array received');
-                            session()->flash('error', 'Failed to upload image: No files received');
-                            return;
-                        }
-                        if (is_array($state)) {
-                            foreach ($state as $file) {
-                                Log::info('Image upload successful', [
-                                    'filename' => is_string($file) ? basename($file) : 'unknown',
-                                    'path' => $file
-                                ]);
-                            }
-                        }
-                    })
-                    ->uploadingMessage('Mengunggah gambar...')
-                    ->imagePreviewHeight('250')
-                    ->loadingIndicatorPosition('left')
-                    ->panelAspectRatio('2.5:1')
-                    ->panelLayout('integrated')
-                    ->removeUploadedFileButtonPosition('right')
-                    ->uploadButtonPosition('right')
-                    ->uploadProgressIndicatorPosition('left')
-                    ->moveFiles()
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                    ->maxSize(5120) // 5MB
-                    ->saveUploadedFileUsing(function ($file) {
-                        try {
-                            // Check storage permissions
-                            $uploadPath = storage_path('app/public/buses');
-                            if (!is_dir($uploadPath)) {
-                                mkdir($uploadPath, 0755, true);
-                            }
-
-                            Log::info('Checking storage permissions', [
-                                'path' => $uploadPath,
-                                'exists' => file_exists($uploadPath),
-                                'is_writable' => is_writable($uploadPath),
-                                'permissions' => decoct(fileperms($uploadPath)),
-                                'server_user' => get_current_user(),
-                                'php_user' => exec('whoami'),
-                            ]);
-
-                            // Log pre-upload details
-                            Log::info('Attempting file upload', [
-                                'original_name' => $file->getClientOriginalName(),
-                                'mime_type' => $file->getMimeType(),
-                                'size' => $file->getSize(),
-                                'error' => $file->getError(),
-                                'disk' => 'public',
-                                'storage_path' => $uploadPath,
-                                'is_valid' => $file->isValid(),
-                                'upload_extension' => $file->extension(),
-                            ]);
-
-                            if (!$file->isValid()) {
-                                throw new \Exception('Invalid file upload: ' . $file->getErrorMessage());
-                            }
-
-                            // Ensure storage directory exists
-                            if (!file_exists($uploadPath)) {
-                                if (!mkdir($uploadPath, 0755, true)) {
-                                    throw new \Exception("Failed to create directory: {$uploadPath}");
-                                }
-                            }
-
-                            $path = $file->store('buses', 'public');
-
-                            if (!Storage::disk('public')->exists($path)) {
-                                throw new \Exception('File was not saved to storage');
-                            }
-
-                            Log::info('File upload successful', [
-                                'path' => $path,
-                                'full_path' => Storage::disk('public')->path($path),
-                                'url' => Storage::disk('public')->url($path),
-                                'exists' => Storage::disk('public')->exists($path),
-                                'mime' => $file->getMimeType(),
-                                'size' => $file->getSize()
-                            ]);
-
-                            return $path;
-                        } catch (\Exception $e) {
-                            Log::error('File upload error', [
-                                'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString(),
-                                'file' => $e->getFile(),
-                                'line' => $e->getLine(),
-                                'disk' => 'public',
-                                'storage_permissions' => decoct(fileperms(storage_path('app/public'))),
-                                'intended_path' => 'buses/' . $file->getClientOriginalName(),
-                                'is_writable' => is_writable(storage_path('app/public')),
-                                'server_path' => $_SERVER['DOCUMENT_ROOT'] ?? 'unknown',
-                            ]);
-
-                            session()->flash('error', 'Failed to upload file: ' . $e->getMessage());
-                            return null;
-                        }
-                    })
-                    ->disk('public')
-                    ->visibility('public'),
+                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.'),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
