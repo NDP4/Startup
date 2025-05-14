@@ -46,6 +46,12 @@ return [
             'throw' => false,
             'report' => true,
             'scheme' => 'https',
+            'forcedScheme' => 'https',
+            'middleware' => ['web'],
+            'headers' => [
+                'X-Frame-Options' => 'SAMEORIGIN',
+                'X-Content-Type-Options' => 'nosniff'
+            ],
             'permissions' => [
                 'file' => [
                     'public' => 0644,

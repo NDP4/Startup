@@ -54,7 +54,26 @@ class BusResource extends Resource
                     ->enableOpen()
                     ->preserveFilenames()
                     ->storeFileNamesIn('image_names')
-                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.'),
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(2048)
+                    ->panelAspectRatio('16:9')
+                    ->panelLayout('integrated')
+                    ->removeUploadedFileButtonPosition('right')
+                    ->uploadProgressIndicatorPosition('bottom')
+                    ->loadingIndicatorPosition('right')
+                    ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
+                    ->imageResizeTargetWidth('1920')
+                    ->imageResizeTargetHeight('1080')
+                    ->uploadButtonPosition('right')
+                    ->forceHttps()
+                    ->visibility('public')
+                    ->onUploadFailed(function ($file, $livewire, $uploadError) {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('Gagal mengunggah file')
+                            ->body($uploadError)
+                            ->send();
+                    }),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
