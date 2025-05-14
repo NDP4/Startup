@@ -43,8 +43,9 @@ return [
             'root' => storage_path('app/public'),
             'url' => env('APP_URL', 'https://startuplinux.ndp.my.id') . '/storage',
             'visibility' => 'public',
-            'throw' => true,
+            'throw' => false,
             'report' => true,
+            'scheme' => 'https',
             'permissions' => [
                 'file' => [
                     'public' => 0644,
