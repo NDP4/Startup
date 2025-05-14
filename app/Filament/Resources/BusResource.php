@@ -91,13 +91,44 @@ class BusResource extends Resource
                     ->maxSize(5120) // 5MB
                     ->saveUploadedFileUsing(function ($file) {
                         try {
+                            // Log pre-upload details
+                            Log::info('Attempting file upload', [
+                                'original_name' => $file->getClientOriginalName(),
+                                'mime_type' => $file->getMimeType(),
+                                'size' => $file->getSize(),
+                                'error' => $file->getError(),
+                                'disk' => 'public',
+                                'storage_path' => storage_path('app/public/buses'),
+                                'is_valid' => $file->isValid(),
+                                'upload_extension' => $file->extension(),
+                            ]);
+
+                            if (!$file->isValid()) {
+                                throw new \Exception('Invalid file upload: ' . $file->getErrorMessage());
+                            }
+
+                            // Ensure storage directory exists
+                            $uploadPath = storage_path('app/public/buses');
+                            if (!file_exists($uploadPath)) {
+                                mkdir($uploadPath, 0755, true);
+                            }
+
                             $path = $file->store('buses', 'public');
+
+                            // Verify file was actually saved
+                            if (!Storage::disk('public')->exists($path)) {
+                                throw new \Exception('File was not saved to storage');
+                            }
+
                             Log::info('File upload successful', [
                                 'path' => $path,
-                                'disk' => 'public',
+                                'full_path' => Storage::disk('public')->path($path),
+                                'url' => Storage::disk('public')->url($path),
+                                'exists' => Storage::disk('public')->exists($path),
                                 'mime' => $file->getMimeType(),
                                 'size' => $file->getSize()
                             ]);
+
                             return $path;
                         } catch (\Exception $e) {
                             Log::error('File upload error', [
@@ -106,7 +137,9 @@ class BusResource extends Resource
                                 'file' => $e->getFile(),
                                 'line' => $e->getLine(),
                                 'disk' => 'public',
-                                'intended_path' => 'buses/' . $file->getClientOriginalName()
+                                'storage_permissions' => decoct(fileperms(storage_path('app/public'))),
+                                'intended_path' => 'buses/' . $file->getClientOriginalName(),
+                                'is_writable' => is_writable(storage_path('app/public')),
                             ]);
 
                             session()->flash('error', 'Failed to upload file: ' . $e->getMessage());
