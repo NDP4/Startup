@@ -91,25 +91,29 @@ class BusResource extends Resource
                     ->maxSize(5120) // 5MB
                     ->saveUploadedFileUsing(function ($file) {
                         try {
-                            $path = $file->store('buses');
-                            Log::info('File uploaded successfully', ['path' => $path]);
+                            $path = $file->store('buses', 'public');
+                            Log::info('File upload successful', [
+                                'path' => $path,
+                                'disk' => 'public',
+                                'mime' => $file->getMimeType(),
+                                'size' => $file->getSize()
+                            ]);
                             return $path;
                         } catch (\Exception $e) {
                             Log::error('File upload error', [
                                 'error' => $e->getMessage(),
                                 'trace' => $e->getTraceAsString(),
                                 'file' => $e->getFile(),
-                                'line' => $e->getLine()
+                                'line' => $e->getLine(),
+                                'disk' => 'public',
+                                'intended_path' => 'buses/' . $file->getClientOriginalName()
                             ]);
-
-                            if (app()->environment('local')) {
-                                throw $e;
-                            }
 
                             session()->flash('error', 'Failed to upload file: ' . $e->getMessage());
                             return null;
                         }
-                    }),
+                    })
+                    ->disk('public'),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
                     ->options([
