@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BusResource\Pages;
 use App\Models\Bus;
+use Exception;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -70,13 +71,20 @@ class BusResource extends Resource
                         }
                         \Illuminate\Support\Facades\Log::info('Image upload successful', ['files' => $state]);
                     })
-                    ->onUploadError(function ($error) {
-                        \Illuminate\Support\Facades\Log::error('Image upload error', [
-                            'error' => $error->getMessage(),
-                            'trace' => $error->getTraceAsString(),
-                            'file' => $error->getFile(),
-                            'line' => $error->getLine()
-                        ]);
+                    ->errorMessage(fn(Exception $error) => 'Error uploading file: ' . $error->getMessage())
+                    ->moveFiles()
+                    ->saveUploadedFileUsing(function ($file) {
+                        try {
+                            $path = $file->store('buses');
+                            \Illuminate\Support\Facades\Log::info('File uploaded successfully', ['path' => $path]);
+                            return $path;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('File upload error', [
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                            throw $e;
+                        }
                     }),
                 Forms\Components\Select::make('pricing_type')
                     ->required()
