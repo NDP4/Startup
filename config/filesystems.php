@@ -41,7 +41,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL', 'https://startuplinux.ndp.my.id') . '/storage',
+            'url' => env('ASSET_URL', 'https://startuplinux.ndp.my.id') . '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => true,
