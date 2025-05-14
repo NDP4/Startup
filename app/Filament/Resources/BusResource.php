@@ -10,6 +10,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class BusResource extends Resource
 {
@@ -56,34 +58,56 @@ class BusResource extends Resource
                     ->preserveFilenames()
                     ->storeFileNamesIn('image_names')
                     ->hint('Upload hingga 5 foto bus. Klik dan tahan untuk mengatur urutan.')
-                    ->uploadingMessage('Mengunggah gambar...')
-                    ->loadingIndicatorPosition('left')
-                    ->removeUploadedFileButtonPosition('right')
-                    ->uploadProgressIndicatorPosition('left')
                     ->afterStateUpdated(function ($state, $set, $livewire) {
                         if ($state === null) {
-                            \Illuminate\Support\Facades\Log::error('Image upload failed: State is null');
+                            Log::error('Image upload failed: State is null');
+                            session()->flash('error', 'Failed to upload image: State is null');
                             return;
                         }
                         if (is_array($state) && empty($state)) {
-                            \Illuminate\Support\Facades\Log::error('Image upload failed: Empty array received');
+                            Log::error('Image upload failed: Empty array received');
+                            session()->flash('error', 'Failed to upload image: No files received');
                             return;
                         }
-                        \Illuminate\Support\Facades\Log::info('Image upload successful', ['files' => $state]);
+                        if (is_array($state)) {
+                            foreach ($state as $file) {
+                                Log::info('Image upload successful', [
+                                    'filename' => is_string($file) ? basename($file) : 'unknown',
+                                    'path' => $file
+                                ]);
+                            }
+                        }
                     })
-                    ->errorMessage(fn(Exception $error) => 'Error uploading file: ' . $error->getMessage())
+                    ->uploadingMessage('Mengunggah gambar...')
+                    ->imagePreviewHeight('250')
+                    ->loadingIndicatorPosition('left')
+                    ->panelAspectRatio('2.5:1')
+                    ->panelLayout('integrated')
+                    ->removeUploadedFileButtonPosition('right')
+                    ->uploadButtonPosition('right')
+                    ->uploadProgressIndicatorPosition('left')
                     ->moveFiles()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(5120) // 5MB
                     ->saveUploadedFileUsing(function ($file) {
                         try {
                             $path = $file->store('buses');
-                            \Illuminate\Support\Facades\Log::info('File uploaded successfully', ['path' => $path]);
+                            Log::info('File uploaded successfully', ['path' => $path]);
                             return $path;
                         } catch (\Exception $e) {
-                            \Illuminate\Support\Facades\Log::error('File upload error', [
+                            Log::error('File upload error', [
                                 'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString()
+                                'trace' => $e->getTraceAsString(),
+                                'file' => $e->getFile(),
+                                'line' => $e->getLine()
                             ]);
-                            throw $e;
+
+                            if (app()->environment('local')) {
+                                throw $e;
+                            }
+
+                            session()->flash('error', 'Failed to upload file: ' . $e->getMessage());
+                            return null;
                         }
                     }),
                 Forms\Components\Select::make('pricing_type')
