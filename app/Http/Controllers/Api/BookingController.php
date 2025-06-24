@@ -133,11 +133,40 @@ class BookingController extends Controller
 
             DB::commit();
 
+            // Load relationships for complete booking data
+            $booking->load(['customer', 'bus']);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Booking created successfully',
                 'data' => [
-                    'booking' => $booking,
+                    'booking' => [
+                        'id' => $booking->id,
+                        'customer' => [
+                            'id' => $booking->customer->id,
+                            'name' => $booking->customer->name,
+                            'email' => $booking->customer->email,
+                            'phone' => $booking->customer->phone,
+                        ],
+                        'bus' => [
+                            'id' => $booking->bus->id,
+                            'name' => $booking->bus->name,
+                            'number_plate' => $booking->bus->number_plate,
+                        ],
+                        'booking_date' => $booking->booking_date->format('Y-m-d H:i:s'),
+                        'return_date' => $booking->return_date?->format('Y-m-d H:i:s'),
+                        'pickup_location' => $booking->pickup_location,
+                        'destination' => $booking->destination,
+                        'total_seats' => $booking->total_seats,
+                        'seat_type' => $booking->seat_type,
+                        'total_amount' => (float) $booking->total_amount,
+                        'special_requests' => $booking->special_requests,
+                        'status' => $booking->status,
+                        'payment_status' => $booking->payment_status,
+                        'snap_token' => $booking->snap_token,
+                        'created_at' => $booking->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $booking->updated_at->format('Y-m-d H:i:s'),
+                    ],
                     'payment' => [
                         'snap_token' => $booking->snap_token,
                         'payment_url' => config('services.midtrans.is_production')
