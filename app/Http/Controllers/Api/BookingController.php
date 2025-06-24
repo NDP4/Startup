@@ -95,6 +95,7 @@ class BookingController extends Controller
             $days = $startDate->diffInDays($endDate) + 1;
 
             if (!$bus->isAvailableOn($startDate, $endDate)) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Bus not available for selected dates'
@@ -113,6 +114,17 @@ class BookingController extends Controller
                 ),
                 ...$validator->validated()
             ]);
+
+            if (!$booking) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create booking'
+                ], 500);
+            }
+
+            // Pastikan relasi customer dan bus di-load
+            $booking->load(['customer', 'bus']);
 
             try {
                 $paymentResult = $booking->createMidtransPayment();
@@ -133,7 +145,8 @@ class BookingController extends Controller
 
             DB::commit();
 
-            // Load relationships for complete booking data
+            // Pastikan relasi customer dan bus di-load ulang setelah save
+            $booking->refresh();
             $booking->load(['customer', 'bus']);
 
             return response()->json([
@@ -169,9 +182,7 @@ class BookingController extends Controller
                     ],
                     'payment' => [
                         'snap_token' => $booking->snap_token,
-                        'payment_url' => config('services.midtrans.is_production')
-                            ? 'https://app.midtrans.com/snap/v2/vtweb/'
-                            : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/'
+                        'payment_url' => (config('services.midtrans.is_production') ? 'https://app.midtrans.com/snap/v2/vtweb/' : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/') . $booking->snap_token
                     ]
                 ]
             ], 201);
