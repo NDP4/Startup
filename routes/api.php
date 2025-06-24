@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Bus routes
     Route::apiResource('buses', BusController::class);
+    Route::post('/buses/{bus}/book', [BusController::class, 'book'])->name('bus.book');
 
     // Booking routes
     Route::apiResource('bookings', BookingController::class);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bus;
+use App\Models\Booking;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -250,5 +251,73 @@ class BusController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function book(Request $request, $id)
+    {
+        // Find the bus first
+        $bus = Bus::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'booking_date' => 'required|date|after:today',
+            'return_date' => 'required|date|after_or_equal:booking_date',
+            'destination' => 'required|string',
+            'pickup_location' => 'required|string',
+            'total_seats' => 'required|integer|min:1',
+            'seat_type' => 'required|in:standard,legrest',
+            'special_requests' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Check if bus is available
+        if ($bus->status !== 'available') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bus is not available for booking'
+            ], 400);
+        }
+
+        // Create booking
+        $booking = new Booking();
+        $booking->customer_id = $request->user()->id;
+        $booking->bus_id = $bus->id;
+        $booking->booking_date = $request->booking_date;
+        $booking->return_date = $request->return_date;
+        $booking->destination = $request->destination;
+        $booking->pickup_location = $request->pickup_location;
+        $booking->total_seats = $request->total_seats;
+        $booking->seat_type = $request->seat_type;
+        $booking->special_requests = $request->special_requests;
+        $booking->status = 'pending';
+
+        // Calculate total price
+        $days = now()->parse($request->booking_date)->diffInDays($request->return_date) + 1;
+        if ($bus->pricing_type === 'daily') {
+            $basePrice = $bus->price_per_day * $days;
+        } else {
+            // Assuming distance pricing needs to be calculated differently
+            $basePrice = $bus->price_per_km * 100; // Example: 100km
+        }
+
+        // Add legrest price if selected
+        if ($request->seat_type === 'legrest') {
+            $basePrice += ($bus->legrest_price_per_seat * $request->total_seats);
+        }
+
+        $booking->total_amount = $basePrice;
+        $booking->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking created successfully',
+            'data' => $booking
+        ], 201);
     }
 }
