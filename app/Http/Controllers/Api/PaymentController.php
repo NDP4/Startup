@@ -60,30 +60,65 @@ class PaymentController extends Controller
             'booking_id' => 'required|exists:bookings,id',
             'amount' => 'required|numeric',
             'payment_type' => 'required|string',
-            'payment_details' => 'required|array'
+            'payment_details' => 'nullable|array'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        // Check if booking belongs to authenticated user
         $booking = Booking::find($request->booking_id);
         if ($booking->customer_id !== Auth::id()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
+        // Jika payment_type midtrans dan snap_token masih null, generate snap_token
+        if ($request->payment_type === 'midtrans' && empty($booking->snap_token)) {
+            $paymentResult = $booking->createMidtransPayment();
+            if (!$paymentResult['success'] || empty($paymentResult['token'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment initialization failed: ' . ($paymentResult['message'] ?? 'Unknown error')
+                ], 500);
+            }
+            $booking->snap_token = $paymentResult['token'];
+            if (isset($paymentResult['order_id'])) {
+                $booking->order_id = $paymentResult['order_id'];
+            }
+            $booking->save();
+        }
+
+        // Buat record payment jika belum ada (optional, tergantung kebutuhan)
         $payment = Payment::create([
             'booking_id' => $request->booking_id,
             'payment_id' => 'PAY-' . uniqid(),
             'amount' => $request->amount,
             'payment_type' => $request->payment_type,
             'status' => 'pending',
-            'payment_details' => $request->payment_details,
-            'created_at' => Carbon::now('Asia/Jakarta'), // Waktu Indonesia
+            'payment_details' => $request->payment_details ?? [],
+            'created_at' => Carbon::now('Asia/Jakarta'),
             'paid_at' => null
         ]);
 
+        // Return payment_url jika payment_type midtrans
+        if ($request->payment_type === 'midtrans') {
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment initialized',
+                'data' => [
+                    'payment' => [
+                        'snap_token' => $booking->snap_token,
+                        'payment_url' => (config('services.midtrans.is_production') ? 'https://app.midtrans.com/snap/v2/vtweb/' : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/') . $booking->snap_token
+                    ]
+                ]
+            ], 201);
+        }
+
+        // Untuk manual, return data payment biasa
         return response()->json(['success' => true, 'data' => $payment], 201);
     }
 

@@ -126,26 +126,27 @@ class BookingController extends Controller
             // Pastikan relasi customer dan bus di-load
             $booking->load(['customer', 'bus']);
 
-            try {
-                $paymentResult = $booking->createMidtransPayment();
+            // Buat snap token setelah booking berhasil dibuat
+            $paymentResult = $booking->createMidtransPayment();
 
-                if (!$paymentResult['success']) {
-                    throw new \Exception('Failed to create payment');
-                }
-
-                $booking->snap_token = $paymentResult['token'];
-                $booking->save();
-            } catch (\Exception $e) {
+            if (!$paymentResult['success'] || empty($paymentResult['token'])) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment initialization failed: ' . $e->getMessage()
+                    'message' => 'Payment initialization failed: ' . ($paymentResult['message'] ?? 'Unknown error')
                 ], 500);
             }
 
+            // Update snap_token dan order_id ke database
+            $booking->snap_token = $paymentResult['token'];
+            if (isset($paymentResult['order_id'])) {
+                $booking->order_id = $paymentResult['order_id'];
+            }
+            $booking->save();
+
             DB::commit();
 
-            // Pastikan relasi customer dan bus di-load ulang setelah save
+            // Ambil data terbaru booking (snap_token sudah pasti terisi)
             $booking->refresh();
             $booking->load(['customer', 'bus']);
 
